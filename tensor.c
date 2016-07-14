@@ -73,6 +73,16 @@ struct tensor_t* tensor_malloc(int n, int m) {
   return pt;
 }
 
+void tensor_init(struct tensor_t *pt) {
+  for (int i = 0; i < pt->N; i++) {
+    pt->R[i] = 0;
+  }
+  for (int i = 0; i < pt->nnz; i++) {
+    pt->CK[i] = 0;
+    pt->V[i]  = 0;
+  }
+}
+
 void tensor_free(struct tensor_t *pt) {
   free(pt->R);
   free(pt->CK);
@@ -80,39 +90,8 @@ void tensor_free(struct tensor_t *pt) {
   free(pt);
 }
 
-void tensor_compress_test(struct tensor_t *pt, struct cord_t *pc) {
-  int j = 0;
-  int prev = pc->c[0].r;
-  pt->R[0] = 0;
-  pt->N    = 0;
-  int count = 1;
-  for (int i = 1; i <= pc->N; i++) {
-    int next = pc->c[i].r;
-    if (next != prev) {
-      j++;
-      pt->R[j] = count;
-      pt->N++;
-    }
-    prev = next;
-    count++;
-  }
-  pt->nnz = pc->nnz;
-  for (int i = 0; i < pc->nnz; i++) {
-    pt->CK[i] = pc->c[i].c * 2 /* # tubes */ + pc->c[i].t;
-    pt->V[i]  = pc->c[i].v;
-  }
-}
-
 void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
-
-  pt->N = pc->N;
-  pt->nnz = pc->nnz;
-  
-  int i;
-  for (i = 0; i < pc->N; i++) {
-    pt->R[i] = 0;
-  }
-  int j;
+  int i, j;
   int next, prev = pc->c[0].r;
   // For each non-zero, use the row number to fill in the R
   // buckets. Two adjacent buckets in R represent a range in CK and V
@@ -132,11 +111,12 @@ void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
   for (int j = prev; j < pc->N; j++) {
     pt->R[j] = i+1;
   }
-  
   for (int i = 0; i < pc->nnz; i++) {
     pt->CK[i] = pc->c[i].c * pc->N + pc->c[i].t;
     pt->V[i]  = pc->c[i].v;
   }
+  pt->N   = pc->N;
+  pt->nnz = pc->nnz;
 }
 
 void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
@@ -240,7 +220,7 @@ void run(int n, double entpb) {
   // cases where we get sligtly more entries than were requested. As a
   // result, we we set an upper bound of 2*entpb to adjust for
   // this. The alternative is to allowcate n*n*n entries, since we
-  // know it will never be the case that that baoud will be exceded.  
+  // know it will never be the case that that baoud will be exceded.
   int m = (int) ceil(entpb*2*n*n*n);
   struct cord_t *pc = cord_malloc(n, m);
   cord_gen(pc, entpb);
@@ -250,6 +230,7 @@ void run(int n, double entpb) {
   cord_print_stats(pc);
   printf("\n");
   struct tensor_t *pt = tensor_malloc(n, m);
+  tensor_init(pt);
   tensor_compress(pt, pc);
   tensor_print(pt);
   printf("\n");
@@ -281,42 +262,11 @@ struct cord_t *cord_test(struct cord_t *pc) {
   return pc;
 }
 
-void run_test() {
-  
-  struct cord_t *pc = cord_malloc(12, 12);
-  cord_test(pc);
-  cord_sort(pc);
-  cord_print(pc);
-
-  struct tensor_t *pt = tensor_malloc(4, 12);
-  tensor_compress(pt, pc);
-  tensor_free(pt);
-    
-  cord_free(pc);
-}
-
 int main(int argc, char *argv[]) {
   if (argc < 1) {
     printf("usage: prog <n>");
   }
   int n = atoi(argv[1]);
   double entpb = 0.01;
-
   run(n, entpb);
-
-  //run_test();
-  
-#if 0
-  struct tensor_t *pt = tensor_gen(n, entpb);
-  printf("%d\n", pt->N);
-  for (int i = 0; i < pt->M; i++) {
-    printf("%4d", pt->R[i]);
-  }
-  printf("\n");
-  for (int i = 0; i < pt->N; i++) {
-    printf("%4d", pt->CK[i]);
-  }
-  printf("\n");
-  tensor_free(pt);
-#endif
 }
