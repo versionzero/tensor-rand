@@ -119,8 +119,7 @@ void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
 }
 
 void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
-  return;
-  int c, t, k, r0;
+  int c, t, k, r0;  
   for (int r = 1; r < pt->N; r++) {
     r0 = r-1;
     for (int i = pt->R[r0]; i < pt->R[r]; i++) {
