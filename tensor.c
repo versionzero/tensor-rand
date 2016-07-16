@@ -91,32 +91,31 @@ void tensor_free(struct tensor_t *pt) {
 }
 
 void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
-  int i, j;
-  int next, prev = pc->c[0].r;
   // For each non-zero, use the row number to fill in the R
   // buckets. Two adjacent buckets in R represent a range in CK and V
   // that have values in that row.
-  for (i = 0; i < pc->nnz; i++) {
-    next = pc->c[i].r;
-    // If there is a jump in row, between two adjacent buckets, r0 and
-    // r1, fill in the buckets between them with the same value as the
-    // r0, so that their range is zero, i.e. there are no values in
-    // that row.
-    for (int j = prev; j < next; j++) {
-      pt->R[j] = i;
-    }
-    pt->R[next] = i+1;
-    prev = next;
-  }
-  for (int j = prev; j < pc->N; j++) {
+  pt->nnz  = pc->nnz;
+  for (int i = 0; i < pt->nnz; i++) {
+    int j = pc->c[i].r+1;
     pt->R[j] = i+1;
   }
+  // If there is a gap in the row structure, between two adjacent
+  // buckets, r0 and r1, fill in the buckets between them with the
+  // same value as the r0, so that their range is zero, i.e. there are
+  // no values in that row.
+  pt->N = pc->N+1;
+  for (int i = 1; i < pt->N; i++) {
+    if (pt->R[i] < pt->R[i-1]) {
+      pt->R[i] = pt->R[i-1];
+    }
+  }
+  // Encode the column and tube indecies in such a way that they can
+  // be decoded later, but consume less space. While we're at it,
+  // stash the value of the entry as well.
   for (int i = 0; i < pc->nnz; i++) {
     pt->CK[i] = pc->c[i].c * pc->N + pc->c[i].t;
     pt->V[i]  = pc->c[i].v;
-  }
-  pt->N   = pc->N;
-  pt->nnz = pc->nnz;
+  }  
 }
 
 void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
