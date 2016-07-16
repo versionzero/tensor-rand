@@ -132,7 +132,7 @@ void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
 
 void tensor_print(struct tensor_t *pt) {
   for (int i = 0; i < pt->N; i++) {
-    printf("%4d ", i);
+    printf(" %4d", i);
   }
   printf("\n");
   for (int i = 0; i < pt->N; i++) {
