@@ -125,8 +125,7 @@ void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
     for (int i = pt->R[r0]; i < pt->R[r]; i++) {
       c = pt->CK[i] / n;
       t = pt->CK[i] % n;
-      k = pt->R[r];
-      printf("(%4d, %4d, %4d)\n", k, c, t);
+      k = r0;
     }
   }
 }
