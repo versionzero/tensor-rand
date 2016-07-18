@@ -167,7 +167,6 @@ void cord_free(struct cord_t *pc) {
 }
 
 void cord_gen(struct cord_t *pc, double entpb) {
-  srand(time(NULL));
   pc->nnz = 0;
   int n = pc->N;
   for (int i = 0; i < n; i++) {
@@ -280,9 +279,16 @@ struct cord_t *cord_test(struct cord_t *pc) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 1) {
+  if (argc == 1) {
     printf("usage: prog <n>");
+    exit(1);
   }
+  int seed = time(NULL);
+  if (argc == 3) {
+    seed = atoi(argv[2]);
+  }
+  printf("seed: %d\n", seed);
+  srand(seed);
   int n = atoi(argv[1]);
   double entpb = 0.01;
   run_ecrs(n, entpb);
