@@ -2,7 +2,19 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
+
+int debug = 1;
+
+void dbgprintf(const char *format, ...) {
+  if (debug == 1) {
+    va_list arguments;
+    va_start(arguments, format);
+    vfprintf(stderr, format, arguments);
+    va_end(arguments);
+  }
+}
 
 double rand2() {
   return rand() / (double) RAND_MAX;
@@ -45,11 +57,11 @@ void matrix_print(struct matrix_t *pt) {
   for (int i = 0; i < pt->N; i++) {
     for (int j = 0; j < pt->M; j++) {
       k = i * pt->N + j;
-      printf("%4d ", pt->B[k]);
+      dbgprintf("%4d ", pt->B[k]);
     }
-    printf("\n");
+    dbgprintf("\n");
   }
-  printf("\n");
+  dbgprintf("\n");
 }
 
 double* vector_malloc(int n) {
@@ -136,21 +148,21 @@ void tensor_mult_ecrs(struct matrix_t *pm, struct tensor_t *pt, double *v, int n
 
 void tensor_print(struct tensor_t *pt) {
   for (int i = 0; i < pt->N; i++) {
-    printf(" %4d", i);
+    dbgprintf(" %4d", i);
   }
-  printf("\n");
+  dbgprintf("\n");
   for (int i = 0; i < pt->N; i++) {
-    printf("%4d ", pt->R[i]);
+    dbgprintf("%4d ", pt->R[i]);
   }
-  printf("\n");
+  dbgprintf("\n");
   for (int i = 0; i < pt->nnz; i++) {
-    printf("%4d ", pt->CK[i]);
+    dbgprintf("%4d ", pt->CK[i]);
   }
-  printf("\n");
+  dbgprintf("\n");
   for (int i = 0; i < pt->nnz; i++) {
-    printf("%4d ", pt->V[i]);
+    dbgprintf("%4d ", pt->V[i]);
   }
-  printf("\n");
+  dbgprintf("\n");
 }
 
 struct cord_t* cord_malloc(int n, int m) {
@@ -218,7 +230,7 @@ void cord_sort_ects(struct cord_t *pc) {
 
 void cord_print(struct cord_t *pc) {
   for (int i = 0; i < pc->nnz; i++) {
-    printf("(%4d, %4d, %4d) = %4d\n",
+    dbgprintf("(%4d, %4d, %4d) = %4d\n",
            pc->c[i].r, pc->c[i].c,
            pc->c[i].t, pc->c[i].v);
   }
@@ -227,7 +239,7 @@ void cord_print(struct cord_t *pc) {
 void cord_print_stats(struct cord_t *pc) {
   int n = pc->N;
   int m = n*n*n;
-  printf("%d/%d = %lf\n", pc->nnz, m, pc->nnz/(double)m);
+  dbgprintf("%d/%d = %lf\n", pc->nnz, m, pc->nnz/(double)m);
 }
 
 
@@ -242,20 +254,20 @@ void run_ecrs(int n, double entpb) {
   cord_gen(pc, entpb);
   cord_sort_ecrs(pc);
   cord_print(pc);
-  printf("\n");
+  dbgprintf("\n");
   cord_print_stats(pc);
-  printf("\n");
+  dbgprintf("\n");
   struct tensor_t *pt = tensor_malloc(n, m);
   tensor_init(pt);
   tensor_compress_ecrs(pt, pc);
   tensor_print(pt);
-  printf("\n");
+  dbgprintf("\n");
   double *pv = vector_malloc(n);
   vector_init(pv, n, 1);
   struct matrix_t *pm = matrix_malloc(n, n);
   tensor_mult_ecrs(pm, pt, pv, n);
   matrix_print(pm);
-  printf("\n");
+  dbgprintf("\n");
   matrix_free(pm);
   tensor_free(pt);
   cord_free(pc);  
@@ -280,14 +292,14 @@ struct cord_t *cord_test(struct cord_t *pc) {
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
-    printf("usage: prog <n>");
+    dbgprintf("usage: prog <n>");
     exit(1);
   }
   int seed = time(NULL);
   if (argc == 3) {
     seed = atoi(argv[2]);
   }
-  printf("seed: %d\n", seed);
+  dbgprintf("seed: %d\n", seed);
   srand(seed);
   int n = atoi(argv[1]);
   double entpb = 0.01;
