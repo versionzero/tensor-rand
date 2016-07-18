@@ -14,7 +14,7 @@ struct tensor_t {
 };
 
 struct matrix_t {
-  int *pM;
+  int *B;
   int N, M;
 };
 
@@ -29,14 +29,14 @@ struct cord_t {
 
 struct matrix_t* matrix_malloc(int n, int m) {
   struct matrix_t *pm = (struct matrix_t*) malloc(sizeof(struct matrix_t));
-  pm->pM = (int*) malloc(n*m*sizeof(int)+1);
-  pm->N  = n;
-  pm->M  = m;
+  pm->B = (int*) malloc(n*m*sizeof(int)+1);
+  pm->N = n;
+  pm->M = m;
   return pm;
 }
 
 void matrix_free(struct matrix_t *pm) {
-  free(pm->pM);
+  free(pm->B);
   free(pm);
 }
 
@@ -45,7 +45,7 @@ void matrix_print(struct matrix_t *pt) {
   for (int i = 0; i < pt->N; i++) {
     for (int j = 0; j < pt->M; j++) {
       k = i * pt->N + j;
-      printf("%4d ", pt->pM[k]);
+      printf("%4d ", pt->B[k]);
     }
     printf("\n");
   }
@@ -57,10 +57,14 @@ double* vector_malloc(int n) {
   return pv;
 }
 
-void vector_init(double *pv, int n) {
+void vector_init(double *pv, int n, int val) {
   for (int i = 0; i < n; i++) {
-    pv[i] = 1;
+    pv[i] = val;
   }
+}
+
+void vector_free(double *pv) {
+  free(pv);
 }
 
 struct tensor_t* tensor_malloc(int n, int m) {
@@ -90,7 +94,7 @@ void tensor_free(struct tensor_t *pt) {
   free(pt);
 }
 
-void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
+void tensor_compress_ecrs(struct tensor_t *pt, struct cord_t *pc) {
   // For each non-zero, use the row number to fill in the R
   // buckets. Two adjacent buckets in R represent a range in CK and V
   // that have values in that row.
@@ -115,17 +119,17 @@ void tensor_compress(struct tensor_t *pt, struct cord_t *pc) {
   for (int i = 0; i < pc->nnz; i++) {
     pt->CK[i] = pc->c[i].c * pc->N + pc->c[i].t;
     pt->V[i]  = pc->c[i].v;
-  }  
+  }
 }
 
-void tensor_mult(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
-  int c, t, k, r0;  
+void tensor_mult_ecrs(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
+  int c, t, k, r0;
   for (int r = 1; r < pt->N; r++) {
     r0 = r-1;
     for (int i = pt->R[r0]; i < pt->R[r]; i++) {
       c = pt->CK[i] / n;
       t = pt->CK[i] % n;
-      k = r0;
+      pm->B[r0*n + c] += v[t] * pt->V[i];
     }
   }
 }
@@ -181,7 +185,7 @@ void cord_gen(struct cord_t *pc, double entpb) {
   }
 }
 
-int cord_sort_cmp(const void *p1, const void *p2) {
+int cord_sort_cmp_ecrs(const void *p1, const void *p2) {
   int result;
   struct c_t *pa = (struct c_t*) p1;
   struct c_t *pb = (struct c_t*) p2;
@@ -193,8 +197,24 @@ int cord_sort_cmp(const void *p1, const void *p2) {
   return result;
 }
 
-void cord_sort(struct cord_t *pc) {
-  qsort(pc->c, pc->nnz, sizeof(struct c_t), cord_sort_cmp);
+void cord_sort_ecrs(struct cord_t *pc) {
+  qsort(pc->c, pc->nnz, sizeof(struct c_t), cord_sort_cmp_ecrs);
+}
+
+int cord_sort_cmp_ects(const void *p1, const void *p2) {
+  int result;
+  struct c_t *pa = (struct c_t*) p1;
+  struct c_t *pb = (struct c_t*) p2;
+  if ((result = pa->t - pb->t) == 0) {
+    if ((result = pa->r - pb->r) == 0) {
+      result = pa->c - pb->c;
+    }
+  }
+  return result;
+}
+
+void cord_sort_ects(struct cord_t *pc) {
+  qsort(pc->c, pc->nnz, sizeof(struct c_t), cord_sort_cmp_ects);
 }
 
 void cord_print(struct cord_t *pc) {
@@ -212,7 +232,7 @@ void cord_print_stats(struct cord_t *pc) {
 }
 
 
-void run(int n, double entpb) {
+void run_ecrs(int n, double entpb) {
   // Since we pick generated coordicates based on entpb, there may be
   // cases where we get sligtly more entries than were requested. As a
   // result, we we set an upper bound of 2*entpb to adjust for
@@ -221,20 +241,20 @@ void run(int n, double entpb) {
   int m = (int) ceil(entpb*2*n*n*n);
   struct cord_t *pc = cord_malloc(n, m);
   cord_gen(pc, entpb);
-  cord_sort(pc);
+  cord_sort_ecrs(pc);
   cord_print(pc);
   printf("\n");
   cord_print_stats(pc);
   printf("\n");
   struct tensor_t *pt = tensor_malloc(n, m);
   tensor_init(pt);
-  tensor_compress(pt, pc);
+  tensor_compress_ecrs(pt, pc);
   tensor_print(pt);
   printf("\n");
   double *pv = vector_malloc(n);
-  vector_init(pv, n);
+  vector_init(pv, n, 1);
   struct matrix_t *pm = matrix_malloc(n, n);
-  tensor_mult(pm, pt, pv, n);
+  tensor_mult_ecrs(pm, pt, pv, n);
   matrix_print(pm);
   printf("\n");
   matrix_free(pm);
@@ -265,5 +285,5 @@ int main(int argc, char *argv[]) {
   }
   int n = atoi(argv[1]);
   double entpb = 0.01;
-  run(n, entpb);
+  run_ecrs(n, entpb);
 }
