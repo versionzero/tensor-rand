@@ -78,7 +78,7 @@ struct tensor_t* tensor_malloc(int n, int m) {
 }
 
 void tensor_init(struct tensor_t *pt) {
-  for (int i = 0; i < pt->N; i++) {
+  for (int i = 0; i < pt->N + 1; i++) {
     pt->R[i] = 0;
   }
   for (int i = 0; i < pt->nnz; i++) {
