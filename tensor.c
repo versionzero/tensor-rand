@@ -20,44 +20,44 @@ double rand2() {
   return rand() / (double) RAND_MAX;
 }
 
-struct tensor_t {
+typedef struct {
   int *R, *CK, *V;
-  int N, nnz;
-};
+  int n, nnz;
+} tensor_t;
 
-struct matrix_t {
-  int *B;
-  int N, M;
-};
+typedef struct {
+  int *M;
+  int n, m;
+} matrix_t;
 
-struct c_t {
+typedef struct {
   int r, c, t, v;
-};
+} c_t;
   
-struct cord_t {
-  struct c_t *c;
-  int nnz, N;
-};
+typedef struct {
+  c_t *c;
+  int nnz, n;
+} cord_t;
 
-struct matrix_t* matrix_malloc(int n, int m) {
-  struct matrix_t *pm = (struct matrix_t*) malloc(sizeof(struct matrix_t));
-  pm->B = (int*) malloc(n*m*sizeof(int)+1);
-  pm->N = n;
-  pm->M = m;
+matrix_t* matrix_malloc(int n, int m) {
+  matrix_t *pm = (matrix_t*) malloc(sizeof(matrix_t));
+  pm->M = (int*) malloc(n*m*sizeof(int)+1);
+  pm->n = n;
+  pm->m = m;
   return pm;
 }
 
-void matrix_free(struct matrix_t *pm) {
-  free(pm->B);
+void matrix_free(matrix_t *pm) {
+  free(pm->M);
   free(pm);
 }
 
-void matrix_print(struct matrix_t *pt) {
+void matrix_print(matrix_t *pt) {
   int k;
-  for (int i = 0; i < pt->N; i++) {
-    for (int j = 0; j < pt->M; j++) {
-      k = i * pt->N + j;
-      dbgprintf("%4d ", pt->B[k]);
+  for (int i = 0; i < pt->n; i++) {
+    for (int j = 0; j < pt->m; j++) {
+      k = i * pt->n + j;
+      dbgprintf("%4d ", pt->M[k]);
     }
     dbgprintf("\n");
   }
@@ -79,18 +79,18 @@ void vector_free(double *pv) {
   free(pv);
 }
 
-struct tensor_t* tensor_malloc(int n, int m) {
-  struct tensor_t *pt = (struct tensor_t*) malloc(sizeof(struct tensor_t));
+tensor_t* tensor_malloc(int n, int m) {
+  tensor_t *pt = (tensor_t*) malloc(sizeof(tensor_t));
   pt->R    = (int*) malloc(n*sizeof(int)+1);
   pt->CK   = (int*) malloc(m*sizeof(int)+1);
   pt->V    = (int*) malloc(m*sizeof(int)+1);
-  pt->N    = n;
+  pt->n    = n;
   pt->nnz  = 0;
   return pt;
 }
 
-void tensor_init(struct tensor_t *pt) {
-  for (int i = 0; i < pt->N + 1; i++) {
+void tensor_init(tensor_t *pt) {
+  for (int i = 0; i < pt->n + 1; i++) {
     pt->R[i] = 0;
   }
   for (int i = 0; i < pt->nnz; i++) {
@@ -99,14 +99,14 @@ void tensor_init(struct tensor_t *pt) {
   }
 }
 
-void tensor_free(struct tensor_t *pt) {
+void tensor_free(tensor_t *pt) {
   free(pt->R);
   free(pt->CK);
   free(pt->V);
   free(pt);
 }
 
-void tensor_compress_ecrs(struct tensor_t *pt, struct cord_t *pc) {
+void tensor_compress_ecrs(tensor_t *pt, cord_t *pc) {
   // For each non-zero, use the row number to fill in the R
   // buckets. Two adjacent buckets in R represent a range in CK and V
   // that have values in that row.
@@ -119,8 +119,8 @@ void tensor_compress_ecrs(struct tensor_t *pt, struct cord_t *pc) {
   // buckets, r0 and r1, fill in the buckets between them with the
   // same value as the r0, so that their range is zero, i.e. there are
   // no values in that row.
-  pt->N = pc->N+1;
-  for (int i = 1; i < pt->N; i++) {
+  pt->n = pc->n+1;
+  for (int i = 1; i < pt->n; i++) {
     if (pt->R[i] < pt->R[i-1]) {
       pt->R[i] = pt->R[i-1];
     }
@@ -129,29 +129,32 @@ void tensor_compress_ecrs(struct tensor_t *pt, struct cord_t *pc) {
   // be decoded later, but consume less space. While we're at it,
   // stash the value of the entry as well.
   for (int i = 0; i < pc->nnz; i++) {
-    pt->CK[i] = pc->c[i].c * pc->N + pc->c[i].t;
+    pt->CK[i] = pc->c[i].c * pc->n + pc->c[i].t;
     pt->V[i]  = pc->c[i].v;
   }
 }
 
-void tensor_mult_ecrs(struct matrix_t *pm, struct tensor_t *pt, double *v, int n) {
+void tensor_ecrs_to_eellpack() {
+}
+
+void tensor_mult_ecrs(matrix_t *pm, tensor_t *pt, double *v, int n) {
   int c, t, k, r0;
-  for (int r = 1; r < pt->N; r++) {
+  for (int r = 1; r < pt->n; r++) {
     r0 = r-1;
     for (int i = pt->R[r0]; i < pt->R[r]; i++) {
       c = pt->CK[i] / n;
       t = pt->CK[i] % n;
-      pm->B[r0*n + c] += v[t] * pt->V[i];
+      pm->M[r0*n + c] += v[t] * pt->V[i];
     }
   }
 }
 
-void tensor_print(struct tensor_t *pt) {
-  for (int i = 0; i < pt->N; i++) {
+void tensor_print(tensor_t *pt) {
+  for (int i = 0; i < pt->n; i++) {
     dbgprintf(" %4d", i);
   }
   dbgprintf("\n");
-  for (int i = 0; i < pt->N; i++) {
+  for (int i = 0; i < pt->n; i++) {
     dbgprintf("%4d ", pt->R[i]);
   }
   dbgprintf("\n");
@@ -165,22 +168,22 @@ void tensor_print(struct tensor_t *pt) {
   dbgprintf("\n");
 }
 
-struct cord_t* cord_malloc(int n, int m) {
-  struct cord_t *pc = (struct cord_t*) malloc(sizeof(struct cord_t));
-  pc->c   = (struct c_t*) malloc(m*sizeof(struct c_t));
-  pc->N   = n;
+cord_t* cord_malloc(int n, int m) {
+  cord_t *pc = (cord_t*) malloc(sizeof(cord_t));
+  pc->c   = (c_t*) malloc(m*sizeof(c_t));
+  pc->n   = n;
   pc->nnz = 0;
   return pc;
 }
 
-void cord_free(struct cord_t *pc) {
+void cord_free(cord_t *pc) {
   free(pc->c);
   free(pc);
 }
 
-void cord_gen(struct cord_t *pc, double entpb) {
+void cord_gen(cord_t *pc, double entpb) {
   pc->nnz = 0;
-  int n = pc->N;
+  int n = pc->n;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
@@ -198,8 +201,8 @@ void cord_gen(struct cord_t *pc, double entpb) {
 
 int cord_sort_cmp_ecrs(const void *p1, const void *p2) {
   int result;
-  struct c_t *pa = (struct c_t*) p1;
-  struct c_t *pb = (struct c_t*) p2;
+  c_t *pa = (c_t*) p1;
+  c_t *pb = (c_t*) p2;
   if ((result = pa->r - pb->r) == 0) {
     if ((result = pa->c - pb->c) == 0) {
       result = pa->t - pb->t;
@@ -208,14 +211,14 @@ int cord_sort_cmp_ecrs(const void *p1, const void *p2) {
   return result;
 }
 
-void cord_sort_ecrs(struct cord_t *pc) {
-  qsort(pc->c, pc->nnz, sizeof(struct c_t), cord_sort_cmp_ecrs);
+void cord_sort_ecrs(cord_t *pc) {
+  qsort(pc->c, pc->nnz, sizeof(c_t), cord_sort_cmp_ecrs);
 }
 
 int cord_sort_cmp_ects(const void *p1, const void *p2) {
   int result;
-  struct c_t *pa = (struct c_t*) p1;
-  struct c_t *pb = (struct c_t*) p2;
+  c_t *pa = (c_t*) p1;
+  c_t *pb = (c_t*) p2;
   if ((result = pa->t - pb->t) == 0) {
     if ((result = pa->r - pb->r) == 0) {
       result = pa->c - pb->c;
@@ -224,11 +227,11 @@ int cord_sort_cmp_ects(const void *p1, const void *p2) {
   return result;
 }
 
-void cord_sort_ects(struct cord_t *pc) {
-  qsort(pc->c, pc->nnz, sizeof(struct c_t), cord_sort_cmp_ects);
+void cord_sort_ects(cord_t *pc) {
+  qsort(pc->c, pc->nnz, sizeof(c_t), cord_sort_cmp_ects);
 }
 
-void cord_print(struct cord_t *pc) {
+void cord_print(cord_t *pc) {
   for (int i = 0; i < pc->nnz; i++) {
     dbgprintf("(%4d, %4d, %4d) = %4d\n",
            pc->c[i].r, pc->c[i].c,
@@ -236,8 +239,8 @@ void cord_print(struct cord_t *pc) {
   }
 }
 
-void cord_print_stats(struct cord_t *pc) {
-  int n = pc->N;
+void cord_print_stats(cord_t *pc) {
+  int n = pc->n;
   int m = n*n*n;
   dbgprintf("%d/%d = %lf\n", pc->nnz, m, pc->nnz/(double)m);
 }
@@ -250,21 +253,21 @@ void run_ecrs(int n, double entpb) {
   // this. The alternative is to allowcate n*n*n entries, since we
   // know it will never be the case that that baoud will be exceded.
   int m = (int) ceil(entpb*2*n*n*n);
-  struct cord_t *pc = cord_malloc(n, m);
+  cord_t *pc = cord_malloc(n, m);
   cord_gen(pc, entpb);
   cord_sort_ecrs(pc);
   cord_print(pc);
   dbgprintf("\n");
   cord_print_stats(pc);
   dbgprintf("\n");
-  struct tensor_t *pt = tensor_malloc(n, m);
+  tensor_t *pt = tensor_malloc(n, m);
   tensor_init(pt);
   tensor_compress_ecrs(pt, pc);
   tensor_print(pt);
   dbgprintf("\n");
   double *pv = vector_malloc(n);
   vector_init(pv, n, 1);
-  struct matrix_t *pm = matrix_malloc(n, n);
+  matrix_t *pm = matrix_malloc(n, n);
   tensor_mult_ecrs(pm, pt, pv, n);
   matrix_print(pm);
   dbgprintf("\n");
@@ -273,13 +276,13 @@ void run_ecrs(int n, double entpb) {
   cord_free(pc);  
 }
 
-struct cord_t *cord_test(struct cord_t *pc) {
+cord_t *cord_test(cord_t *pc) {
   int T[12] = { 0, 0, 0, 0, 0, 0, 1, 1, 1,  1,  1,  1 };
   int R[12] = { 0, 0, 1, 1, 2, 2, 0, 0, 1,  1,  2,  2 };
   int C[12] = { 1, 3, 0, 2, 1, 2, 0, 2, 1,  2,  0,  3 };
   int V[12] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
   pc->nnz = 0;
-  int n = pc->N;
+  int n = pc->n;
   for (int i = 0; i < n; i++) {
     pc->c[pc->nnz].r = R[i];
     pc->c[pc->nnz].c = C[i];
