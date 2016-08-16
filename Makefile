@@ -9,4 +9,4 @@ tensor: $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 clean:
-	rm -f $(OBJ)
+	rm -f $(OBJ) tensor
