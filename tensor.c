@@ -234,8 +234,8 @@ void cord_sort_ects(cord_t *pc) {
 void cord_print(cord_t *pc) {
   for (int i = 0; i < pc->nnz; i++) {
     dbgprintf("(%4d, %4d, %4d) = %4d\n",
-           pc->c[i].r, pc->c[i].c,
-           pc->c[i].t, pc->c[i].v);
+              pc->c[i].t, pc->c[i].r,
+              pc->c[i].c, pc->c[i].v);
   }
 }
 
