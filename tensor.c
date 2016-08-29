@@ -255,7 +255,7 @@ void run_ecrs(int n, double entpb) {
   int m = (int) ceil(entpb*2*n*n*n);
   cord_t *pc = cord_malloc(n, m);
   cord_gen(pc, entpb);
-  cord_sort_ecrs(pc);
+  cord_sort_ects(pc);
   cord_print(pc);
   dbgprintf("\n");
   cord_print_stats(pc);
