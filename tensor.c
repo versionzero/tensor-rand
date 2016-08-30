@@ -32,7 +32,7 @@ typedef struct {
 
 typedef struct {
   matrix_t *A, *B;
-  int n, nnz;
+  int n, nnz, ndiag;
 } tensor_eellpack_t;
 
 typedef struct {
@@ -152,11 +152,11 @@ void tensor_ecrs_mult(matrix_t *pm, tensor_ecrs_t *pt, double *v, int n) {
 }
 
 int tensor_ecrs_max_row(tensor_ecrs_t *pt) {
-  int length = 0;
+  int ndiag = 0;
   for (int r = 1; r < pt->n; r++) {
-    length = fmax(length, pt->R[r] - pt->R[r-1]);
+    ndiag = fmax(ndiag, pt->R[r] - pt->R[r-1]);
   }
-  return length;
+  return ndiag;
 }
 
 void tensor_ecrs_print(tensor_ecrs_t *pt) {
@@ -178,17 +178,49 @@ void tensor_ecrs_print(tensor_ecrs_t *pt) {
   dbgprintf("\n");
 }
 
-tensor_eellpack_t* tensor_eellpack_malloc(int n) {
+tensor_eellpack_t* tensor_eellpack_malloc(int n, int ndiag) {
   tensor_eellpack_t *pt = (tensor_eellpack_t*) malloc(sizeof(tensor_ecrs_t));
-  pt->A   = matrix_malloc(n, n);
-  pt->B   = matrix_malloc(n, n);
-  pt->n   = n;
-  pt->nnz = 0;
+  pt->A     = matrix_malloc(n, ndiag);
+  pt->B     = matrix_malloc(n, ndiag);
+  pt->n     = n;
+  pt->ndiag = ndiag;
+  pt->nnz   = 0;
   return pt;
 }
 
 void tensor_eellpack_init(tensor_eellpack_t *pt) {
-  
+  /*
+c
+c fill coef with zero elements and jcoef with row numbers.------------ 
+c
+      do 4 j=1,ndiag 
+         do 41 i=1,nrow
+            coef(i,j) = 0.0d0
+            jcoef(i,j) = i
+ 41      continue
+ 4    continue
+  */
+  int i, j, n, ndiag;
+  n     = pt->n;
+  ndiag = pt->ndiag;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < ndiag; j++) {
+      pt->A->M[i*n+j] = 0.0;
+      pt->B->M[i*n+j] = i;
+      //dbgprintf("%d\n", j);
+    }
+  }
+}
+
+void tensor_eellpack_print(tensor_eellpack_t *pt) {
+  for (int i = 0; i < pt->ndiag; i++) {
+    dbgprintf(" %4d", i);
+  }
+  dbgprintf("\n");
+  matrix_print(pt->A);
+  dbgprintf("\n");
+  matrix_print(pt->B);
+  dbgprintf("\n");
 }
 
 void tensor_eellpack_free(tensor_eellpack_t *pt) {
@@ -276,21 +308,24 @@ void run_ecrs(int n, double entpb) {
   dbgprintf("\n");
   cord_print_stats(pc);
   dbgprintf("\n");
-  tensor_ecrs_t *pt = tensor_ecrs_malloc(n, m);
-  tensor_ecrs_init(pt);
-  tensor_ecrs_compress(pt, pc);
-  tensor_ecrs_print(pt);
+  tensor_ecrs_t *ptecrs = tensor_ecrs_malloc(n, m);
+  tensor_ecrs_init(ptecrs);
+  tensor_ecrs_compress(ptecrs, pc);
+  tensor_ecrs_print(ptecrs);
   dbgprintf("\n");
   double *pv = vector_malloc(n);
   vector_init(pv, n, 1);
   matrix_t *pm = matrix_malloc(n, n);
-  tensor_ecrs_mult(pm, pt, pv, n);
+  tensor_ecrs_mult(pm, ptecrs, pv, n);
   matrix_print(pm);
   dbgprintf("\n");
-  int length = tensor_ecrs_max_row(pt);
-  dbgprintf("length: %d\n", length);
+  int ndiag = tensor_ecrs_max_row(ptecrs);
+  dbgprintf("ndiag: %d\n", ndiag);
+  tensor_eellpack_t *pteell = tensor_eellpack_malloc(n, ndiag);
+  tensor_eellpack_init(pteell);
+  tensor_eellpack_print(pteell);
   matrix_free(pm);
-  tensor_ecrs_free(pt);
+  tensor_ecrs_free(ptecrs);
   cord_free(pc);  
 }
 
