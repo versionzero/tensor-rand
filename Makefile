@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I.
+CFLAGS=-I. -lm -ggdb
 OBJ = tensor.o
 
 %.o: %.c
