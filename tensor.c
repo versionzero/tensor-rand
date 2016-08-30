@@ -23,12 +23,17 @@ double rand2() {
 typedef struct {
   int *R, *CK, *V;
   int n, nnz;
-} tensor_t;
+} tensor_ecrs_t;
 
 typedef struct {
   int *M;
   int n, m;
 } matrix_t;
+
+typedef struct {
+  matrix_t *A, *B;
+  int n, nnz;
+} tensor_eellpack_t;
 
 typedef struct {
   int r, c, t, v;
@@ -79,8 +84,8 @@ void vector_free(double *pv) {
   free(pv);
 }
 
-tensor_t* tensor_malloc(int n, int m) {
-  tensor_t *pt = (tensor_t*) malloc(sizeof(tensor_t));
+tensor_ecrs_t* tensor_ecrs_malloc(int n, int m) {
+  tensor_ecrs_t *pt = (tensor_ecrs_t*) malloc(sizeof(tensor_ecrs_t));
   pt->R    = (int*) malloc(n*sizeof(int)+1);
   pt->CK   = (int*) malloc(m*sizeof(int)+1);
   pt->V    = (int*) malloc(m*sizeof(int)+1);
@@ -89,7 +94,7 @@ tensor_t* tensor_malloc(int n, int m) {
   return pt;
 }
 
-void tensor_init(tensor_t *pt) {
+void tensor_ecrs_init(tensor_ecrs_t *pt) {
   for (int i = 0; i < pt->n + 1; i++) {
     pt->R[i] = 0;
   }
@@ -99,20 +104,20 @@ void tensor_init(tensor_t *pt) {
   }
 }
 
-void tensor_free(tensor_t *pt) {
+void tensor_ecrs_free(tensor_ecrs_t *pt) {
   free(pt->R);
   free(pt->CK);
   free(pt->V);
   free(pt);
 }
 
-void tensor_compress_ecrs(tensor_t *pt, cord_t *pc) {
+void tensor_ecrs_compress(tensor_ecrs_t *pt, cord_t *pc) {
   // For each non-zero, use the row number to fill in the R
   // buckets. Two adjacent buckets in R represent a range in CK and V
   // that have values in that row.
   pt->nnz  = pc->nnz;
   for (int i = 0; i < pt->nnz; i++) {
-    int j = pc->c[i].r+1;
+    int j = pc->c[i].t+1;
     pt->R[j] = i+1;
   }
   // If there is a gap in the row structure, between two adjacent
@@ -129,15 +134,12 @@ void tensor_compress_ecrs(tensor_t *pt, cord_t *pc) {
   // be decoded later, but consume less space. While we're at it,
   // stash the value of the entry as well.
   for (int i = 0; i < pc->nnz; i++) {
-    pt->CK[i] = pc->c[i].c * pc->n + pc->c[i].t;
+    pt->CK[i] = pc->c[i].c * pc->n + pc->c[i].r;
     pt->V[i]  = pc->c[i].v;
   }
 }
 
-void tensor_ecrs_to_eellpack() {
-}
-
-void tensor_mult_ecrs(matrix_t *pm, tensor_t *pt, double *v, int n) {
+void tensor_ecrs_mult(matrix_t *pm, tensor_ecrs_t *pt, double *v, int n) {
   int c, t, k, r0;
   for (int r = 1; r < pt->n; r++) {
     r0 = r-1;
@@ -149,7 +151,15 @@ void tensor_mult_ecrs(matrix_t *pm, tensor_t *pt, double *v, int n) {
   }
 }
 
-void tensor_print(tensor_t *pt) {
+int tensor_ecrs_max_row(tensor_ecrs_t *pt) {
+  int length = 0;
+  for (int r = 1; r < pt->n; r++) {
+    length = fmax(length, pt->R[r] - pt->R[r-1]);
+  }
+  return length;
+}
+
+void tensor_ecrs_print(tensor_ecrs_t *pt) {
   for (int i = 0; i < pt->n; i++) {
     dbgprintf(" %4d", i);
   }
@@ -166,6 +176,28 @@ void tensor_print(tensor_t *pt) {
     dbgprintf("%4d ", pt->V[i]);
   }
   dbgprintf("\n");
+}
+
+tensor_eellpack_t* tensor_eellpack_malloc(int n) {
+  tensor_eellpack_t *pt = (tensor_eellpack_t*) malloc(sizeof(tensor_ecrs_t));
+  pt->A   = matrix_malloc(n, n);
+  pt->B   = matrix_malloc(n, n);
+  pt->n   = n;
+  pt->nnz = 0;
+  return pt;
+}
+
+void tensor_eellpack_init(tensor_eellpack_t *pt) {
+  
+}
+
+void tensor_eellpack_free(tensor_eellpack_t *pt) {
+  matrix_free(pt->A);
+  matrix_free(pt->B);
+  free(pt);
+}
+
+void tensor_ecrs_to_eellpack(tensor_ecrs_t *ptecrs, tensor_eellpack_t *pteell) {
 }
 
 cord_t* cord_malloc(int n, int m) {
@@ -203,22 +235,6 @@ int cord_sort_cmp_ecrs(const void *p1, const void *p2) {
   int result;
   c_t *pa = (c_t*) p1;
   c_t *pb = (c_t*) p2;
-  if ((result = pa->r - pb->r) == 0) {
-    if ((result = pa->c - pb->c) == 0) {
-      result = pa->t - pb->t;
-    }
-  }
-  return result;
-}
-
-void cord_sort_ecrs(cord_t *pc) {
-  qsort(pc->c, pc->nnz, sizeof(c_t), cord_sort_cmp_ecrs);
-}
-
-int cord_sort_cmp_ects(const void *p1, const void *p2) {
-  int result;
-  c_t *pa = (c_t*) p1;
-  c_t *pb = (c_t*) p2;
   if ((result = pa->t - pb->t) == 0) {
     if ((result = pa->r - pb->r) == 0) {
       result = pa->c - pb->c;
@@ -227,8 +243,8 @@ int cord_sort_cmp_ects(const void *p1, const void *p2) {
   return result;
 }
 
-void cord_sort_ects(cord_t *pc) {
-  qsort(pc->c, pc->nnz, sizeof(c_t), cord_sort_cmp_ects);
+void cord_sort_ecrs(cord_t *pc) {
+  qsort(pc->c, pc->nnz, sizeof(c_t), cord_sort_cmp_ecrs);
 }
 
 void cord_print(cord_t *pc) {
@@ -255,24 +271,26 @@ void run_ecrs(int n, double entpb) {
   int m = (int) ceil(entpb*2*n*n*n);
   cord_t *pc = cord_malloc(n, m);
   cord_gen(pc, entpb);
-  cord_sort_ects(pc);
+  cord_sort_ecrs(pc);
   cord_print(pc);
   dbgprintf("\n");
   cord_print_stats(pc);
   dbgprintf("\n");
-  tensor_t *pt = tensor_malloc(n, m);
-  tensor_init(pt);
-  tensor_compress_ecrs(pt, pc);
-  tensor_print(pt);
+  tensor_ecrs_t *pt = tensor_ecrs_malloc(n, m);
+  tensor_ecrs_init(pt);
+  tensor_ecrs_compress(pt, pc);
+  tensor_ecrs_print(pt);
   dbgprintf("\n");
   double *pv = vector_malloc(n);
   vector_init(pv, n, 1);
   matrix_t *pm = matrix_malloc(n, n);
-  tensor_mult_ecrs(pm, pt, pv, n);
+  tensor_ecrs_mult(pm, pt, pv, n);
   matrix_print(pm);
   dbgprintf("\n");
+  int length = tensor_ecrs_max_row(pt);
+  dbgprintf("length: %d\n", length);
   matrix_free(pm);
-  tensor_free(pt);
+  tensor_ecrs_free(pt);
   cord_free(pc);  
 }
 
