@@ -1,12 +1,13 @@
 CC=gcc
-CFLAGS=-I. -lm -ggdb
-OBJ = tensor.o
+CFLAGS=-I.
+LDFLAGS=-lm -ggdb
+OBJ = debug.o main.o matrix.o tensor.o vector.o
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 tensor: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
+	gcc -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 clean:
 	rm -f $(OBJ) tensor
