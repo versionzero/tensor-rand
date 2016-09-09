@@ -1,5 +1,6 @@
 #include "common.h"
 #include "debug.h"
+#include "gundersen.h"
 #include "matrix.h"
 #include "tensor.h"
 #include "vector.h"

@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-I.
 LDFLAGS=-lm -ggdb
-OBJ = debug.o main.o matrix.o tensor.o vector.o
+OBJ = debug.o gundersen.o main.o matrix.o tensor.o vector.o
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
