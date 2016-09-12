@@ -15,6 +15,9 @@ int indexT[] = {0,0,0,1,2,1,1,3,2,2,4,0,2,2,4,0,2,4,5};
 int pointerT[] = {0,1,2,4,5,6,8,9,11,12,13,15,19};
 
 
+// Calculate:
+//    g <- g + (pT)p
+//
 void gundersen() {
   int N = 6;
   double p[] = {1,1,1,1,1,1};
@@ -30,14 +33,14 @@ void gundersen() {
     stop = pointerH[i+1]-1;
     j = indexH[start];
     pi = p[i];
-    kpi = 2*pi;
-    pipi = pi*pi;
+    //kpi = 2*pi;
+    //pipi = pi*pi;
     for(;j<i;start++,ind++,tp++){
       j = indexH[start];
       pj = p[j];
-      pipj = pi*pj;
-      kpipj = 2*pipj;
-      kpj = 2*pj;
+      //pipj = pi*pj;
+      //kpipj = 2*pi*pj;
+      //kpj = 2*pj;
       startTubek = pointerT[tp];
       stopTubek = pointerT[tp+1]-1;
       for(;startTubek<stopTubek;startTubek++,ind++){
@@ -45,14 +48,14 @@ void gundersen() {
         k = indexT[ind];
         Tijk = valueT[ind];
         pk = p[k];
-        pkTijk = pk*Tijk;
-        ga += pkTijk;
-        g[k] += kpipj*Tijk;
+        //pkTijk = pk*Tijk;
+        ga += pk*Tijk;
+        g[k] += 2*pi*pj*Tijk;
       }
       //Handle the case when two indices are equal: k=j
       Tijj = valueT[ind];
-      g[i] += (kpj*ga+pj*pj*Tijj);
-      g[j] += (kpi*ga+kpipj*Tijj);
+      g[i] += (2*pj*ga+  pj*pj*Tijj);
+      g[j] += (2*pi*ga+2*pi*pj*Tijj);
       ga = 0.0;
       j = indexH[start+1];
     }
@@ -64,10 +67,10 @@ void gundersen() {
       Tiik = valueT[ind];
       pk = p[k];
       ga += pk*Tiik;
-      g[k] += pipi*Tiik;
+      g[k] += pi*pi*Tiik;
     }
     //Handle the case when all three indices are equal
-    g[i] += (kpi*ga + pipi*valueT[ind]);
+    g[i] += (2*pi*ga + pi*pi*valueT[ind]);
     ga = 0.0;
   }
 }

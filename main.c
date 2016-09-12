@@ -68,4 +68,5 @@ int main(int argc, char *argv[]) {
   int n = atoi(argv[1]);
   double entpb = 0.01;
   run_ecrs(n, entpb);
+  gundersen();
 }
